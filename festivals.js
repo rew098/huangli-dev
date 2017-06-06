@@ -306,7 +306,13 @@ var festivals = {
 
             value = '';
         
+        } else if ( value instanceof Array) {
+
+            value = value.join('|');
+            
         }
+        
+
 
         return value;
     },
