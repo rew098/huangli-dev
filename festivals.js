@@ -10,6 +10,10 @@
         l2: '世界预防自杀日'
     }
 
+    暴露方法
+
+    get 查询节日
+
 */
 var festivals = {
 
@@ -139,30 +143,37 @@ var festivals = {
         ]
 
     },
-    
-    // 初始化
-    init: function() {
-        
-    },
 
     // 闰年判断
     isLeapYear: function(y) {
 
         if (((y % 4 === 0) && (y % 100 !== 0)) || (y % 400 === 0)) {
+
             return true;
+
         } else {
+
             return false;
         }
 
     },
     
-    // 修饰器
+    /**
+     * 补零
+     * @param n {Number} 数字
+     */ 
     modifier: function(n) {
+
         if (n < 10) {
+
             return '0' + n;
+
         } else {
+
             return n;
+
         }
+
     },
 
     /**
@@ -179,50 +190,125 @@ var festivals = {
         }
 
         var k = 'd' + this.modifier(m) + this.modifier(d); // 补零
+
+        // 是否有缓存
+        if (!this.cache[y]) {
+
+            this.cache[y] = {};
+            this.specialCasesHandler(y);
+            this.dynamicDataHandler(y);
+
+        }
         
-        for (item in this.constantData) {
-            
-            if (this.constantData.hasOwnProperty(item)) {
-                
-                if (this.constantData[item][k]) {
-                    
-                    var data = this.constantData[item][k];
+        result.l1 = this.find(y, 'l1', k);
+        result.l2 = this.find(y, 'l2', k);
 
-                    if (data instanceof Array) {
+        return result;
+    
+    },
 
-                        var tmpArray = [];
+    /**
+     * 查找
+     * @param key {string} l1 l2
+     * @param subkey {string} 键
+     */ 
+    find: function(y, key, subkey) {
 
-                        for(var i = 0, len = data.length; i < len; i++) {
+        var value = '';
+        var consData = this.constantData;
+        var cacheData = this.cache;
 
-                            var startYear = data[i].split('|')[1];
+        function valueFilter(data, year) {
 
-                            if (!startYear || (+startYear < y)) {
-                                tmpArray.push(data[i].split('|')[0]);
-                            }
+            var result = '';
 
-                        }
+            if (data instanceof Array) {
 
-                        result[item] = tmpArray;  
+                var tmpArray = [];
 
-                    } else {
-                        
-                        var startYear = data.split('|')[1];
+                for(var i = 0, len = data.length; i < len; i++) {
 
-                        if (!startYear || (+startYear < y)) {
-                            result[item] = data.split('|')[0];  
-                        }
+                    var startYear = data[i].split('|')[1];
+
+                    if (!startYear || (+startYear <= year)) {
+
+                        tmpArray.push(data[i].split('|')[0]);
 
                     }
 
                 }
 
+                if (tmpArray.length <= 1) {
+
+                    result = tmpArray.join();
+
+                } else {
+
+                    result = tmpArray;
+
+                }
+
+
+            } else {
+
+                var startYear = data.split('|')[1];
+
+                if (!startYear || (+startYear <= year)) {
+
+                    result = data.split('|')[0];
+
+                }
             }
+
+            return result;
+        }
+
+        // 固定节日查找
+        if (consData[key][subkey]) {
+
+            var cValue = consData[key][subkey];
+            cValue = valueFilter(cValue, y);
 
         }
 
-        console.log(result);
-        return result;
-    
+        // 非固定节日查找
+        if (cacheData[y][key][subkey]) {
+
+            var dValue = cacheData[y][key][subkey];
+            dValue = valueFilter(dValue, y);
+
+        }
+        
+        // 合并结果
+        if (cValue && dValue) {
+
+            if (typeof cValue === 'string') {
+
+                cValue = cValue.split();
+
+            }
+
+            if (typeof dValue === 'string') {
+
+                dValue = dValue.split();
+
+            }
+
+            value = cValue.concat(dValue);
+
+        } else {
+
+            value = cValue ? cValue : dValue;
+
+        }
+
+        if (!value) {
+
+            value = '';
+        
+        }
+
+        return value;
     },
 
     /**
@@ -252,25 +338,103 @@ var festivals = {
         }
 
     },
+    /**
+     * 特殊节日处理
+     */
+    specialCasesHandler: function(year) {
 
-    // 扩展数据
-    extend: function(obj) {
-        
-    },
-
-    // 特殊节日处理
-    specialCasesHandler: function(y) {
-
-        /* 
-            世界防治麻风病日 1月最后一个星期日 1953
-            国际罕见病日 2月最后一天 2008
-        */
+        //  世界防治麻风病日 1月最后一个星期日 1953 (暂不添加)
+        //  国际罕见病日 2月最后一天 2008
         var k = 'd0228';
 
-        if (isLeapYear) {
+        if (this.isLeapYear) {
             k = 'd0229';
         }
+        
+        this.cache[year]['l2'] = {};
+        this.cache[year]['l2'][k] = '国际罕见病日|2008';
 
-        this.cache[y][k] = '国际罕见病日|2008';        
+    },
+
+    /**
+     * 动态数据处理
+     */
+    dynamicDataHandler: function(year) {
+
+        var maxDaysTable = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+        var dData = this.dynamicData;
+
+        for (item in dData) {
+
+            if (dData.hasOwnProperty(item)) {
+
+                var subData = dData[item];
+
+                var dateObj = new Date(year, 0);
+
+                for (var i = 0, len = subData.length; i < len; i++) {
+                    
+                    var str = subData[i]; // 格式: 0512-世界哮喘日-2000
+
+                    var arr = str.split('-');
+
+                    var t = arr[0];
+
+                    var m = +(t.substr(0, 2)); // 月份
+
+                    var weekIndex = +(t.substr(2, 1)); // 第几个
+
+                    var week = +(t.substr(3, 1)); // 星期几
+
+                    var name = arr[1]; // 节日名称
+
+                    var sY = arr[2] ? arr[2] : '';  // 起始年份
+
+                    var maxDay = maxDaysTable[m - 1];
+
+                    if (this.isLeapYear(year) && m === 2) {
+                        maxDay = 28;
+                    }
+
+                    dateObj.setMonth(m-1);
+
+                    var index = 0;
+
+                    for (var j = 1; j <= maxDay; j++) {
+                        
+                        dateObj.setDate(j);
+
+                        if (dateObj.getDay() === week) {
+                            
+                            index++;
+
+                            if (index === weekIndex) {
+
+                                var thisKey = 'd' + this.modifier(m) + this.modifier(dateObj.getDate());
+                                var thisValue = name + sY;
+                                
+                                if (!this.cache[year][item]) {
+                                    this.cache[year][item] = {};
+                                }
+
+                                this.cache[year][item][thisKey] = thisValue;
+
+                                break;
+                                
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        }
+
+        console.log('----------fn dynamicDataHandler cache-----------');
+        console.log(this.cache);
     }
 } 
